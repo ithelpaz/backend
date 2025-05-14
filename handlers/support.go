@@ -7,12 +7,12 @@ import (
 	"ithelp/models"
 	"ithelp/utils"
 	"strconv"
-
+	"log"
 	"github.com/gofiber/fiber/v2"
 )
 
 func CreateSupportRequest(c *fiber.Ctx) error {
-	userJson := c.Locals("user").(string)
+	userJson := c.Locals("userJSON").(string)
 	var requester models.User
 	json.Unmarshal([]byte(userJson), &requester)
 
@@ -41,38 +41,70 @@ func CreateSupportRequest(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"success": true, "message": "Request created"})
 }
 
+// handlers/support.go
 func ListMySupportRequests(c *fiber.Ctx) error {
-	userJson := c.Locals("user").(string)
-	var requester models.User
-	json.Unmarshal([]byte(userJson), &requester)
+    // İstifadəçi məlumatlarını yoxlamaq
+    user, ok := c.Locals("user").(models.User)
+    if !ok || user.ID == 0 {
+        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+            "success": false,
+            "error": "Invalid user data",
+        })
+    }
 
-	database, err := db.Connect()
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "DB error")
-	}
-	defer database.Close()
+    // Verilənlər bazası bağlantısı
+    database, err := db.Connect()
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "success": false,
+            "error": "Database connection failed",
+        })
+    }
+    defer database.Close()
 
-	rows, err := database.Query("SELECT id, user_id, title, description, category, status, assigned_to, created_at, updated_at FROM support_requests WHERE user_id = ?", requester.ID)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "Query error")
-	}
-	defer rows.Close()
+    // Sorğunu icra etmək
+    rows, err := database.Query(`
+        SELECT id, title, description, status, created_at
+        FROM support_requests 
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+    `, user.ID)
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "success": false,
+            "error": "Failed to query requests: " + err.Error(),
+        })
+    }
+    defer rows.Close()
 
-	var requests []models.SupportRequest
-	for rows.Next() {
-		var r models.SupportRequest
-		err := rows.Scan(&r.ID, &r.UserID, &r.Title, &r.Description, &r.Category, &r.Status, &r.AssignedTo, &r.CreatedAt, &r.UpdatedAt)
-		if err != nil {
-			continue
-		}
-		requests = append(requests, r)
-	}
+    // Nəticələri emal etmək
+    var requests []models.SupportRequest
+    for rows.Next() {
+        var req models.SupportRequest
+        if err := rows.Scan(
+            &req.ID, &req.Title, &req.Description, 
+            &req.Status, &req.CreatedAt,
+        ); err != nil {
+            log.Printf("Error scanning row: %v", err)
+            continue
+        }
+        requests = append(requests, req)
+    }
 
-	return c.JSON(fiber.Map{"success": true, "data": requests})
+    // Əgər heç bir sorğu yoxdursa, boş array qaytar
+    if requests == nil {
+        requests = []models.SupportRequest{}
+    }
+
+    // Uğurlu cavab
+    return c.JSON(fiber.Map{
+        "success": true,
+        "data": requests,
+    })
 }
 
 func ListAllSupportRequests(c *fiber.Ctx) error {
-	userJson := c.Locals("user").(string)
+	userJson := c.Locals("userJSON").(string)
 	var requester models.User
 	json.Unmarshal([]byte(userJson), &requester)
 
@@ -109,7 +141,7 @@ func UpdateSupportRequest(c *fiber.Ctx) error {
 	idParam := c.Params("id")
 	requestID, _ := strconv.Atoi(idParam)
 
-	userJson := c.Locals("user").(string)
+	userJson := c.Locals("userJSON").(string)
 	var requester models.User
 	json.Unmarshal([]byte(userJson), &requester)
 
@@ -159,7 +191,7 @@ func UpdateSupportRequest(c *fiber.Ctx) error {
 }
 
 func ListAssignedSupportRequests(c *fiber.Ctx) error {
-	userJson := c.Locals("user").(string)
+	userJson := c.Locals("userJSON").(string)
 	var tech models.User
 	json.Unmarshal([]byte(userJson), &tech)
 

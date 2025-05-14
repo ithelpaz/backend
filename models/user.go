@@ -1,9 +1,11 @@
 package models
+import "database/sql"
 
 type User struct {
 	ID                int    `json:"id"`
 	Name              string `json:"name"`
-	Email             string `json:"email"`
+	Phone             string `json:"phone"`
+ 	Email             sql.NullString `json:"email"`
 	PasswordHash      string `json:"-"`
 	Role              string `json:"role"` // user, admin, tech
 	SubscriptionPlan  string `json:"subscription_plan"`

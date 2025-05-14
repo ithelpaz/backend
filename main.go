@@ -8,6 +8,7 @@ import (
 
 	"ithelp/handlers"
 	"ithelp/middleware"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 func main() {
@@ -15,8 +16,14 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("⚠️  .env faylı tapılmadı, davam edilir...")
 	}
+    app := fiber.New()
 
-	app := fiber.New()
+    // Allow all origins, methods and headers
+    app.Use(cors.New(cors.Config{
+        AllowOrigins: "*",
+        AllowHeaders: "*",
+        AllowMethods: "*",
+    }))
 
 	// Auth route-lar
 	app.Post("/api/register", handlers.Register)
@@ -49,7 +56,6 @@ func main() {
 	planGroup.Post("/", handlers.CreatePlan)
 	planGroup.Put("/:id", handlers.UpdatePlan)
 	planGroup.Delete("/:id", handlers.DeletePlan)
-
 
 
 

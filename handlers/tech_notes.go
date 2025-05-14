@@ -10,7 +10,7 @@ import (
 )
 
 func AddTechNote(c *fiber.Ctx) error {
-	userJson := c.Locals("user").(string)
+	userJson := c.Locals("userJSON").(string)
 	var tech models.User
 	json.Unmarshal([]byte(userJson), &tech)
 
