@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Status Yeniləndi</title></head>
+<body style="font-family:sans-serif; background:#f9f9f9; padding:20px;">
+  <div style="background:white; padding:20px; border-radius:6px; max-width:600px; margin:auto;">
+    <h2 style="color:#333;">Salam {{.UserName}},</h2>
+    <p>Müraciətinizin statusu dəyişdirildi.</p>
+    <p><strong>Müraciət ID:</strong> #{{.RequestID}}</p>
+    <p><strong>Yeni status:</strong> {{.NewStatus}}</p>
+    <hr />
+    <p style="font-size:12px; color:#999;">Bu mesaj sistem tərəfindən avtomatik göndərilib.</p>
+  </div>
+</body>
+</html>

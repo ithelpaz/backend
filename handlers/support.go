@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"ithelp/db"
 	"ithelp/models"
+	"ithelp/utils"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -130,10 +132,27 @@ func UpdateSupportRequest(c *fiber.Ctx) error {
 	}
 	defer database.Close()
 
-	query := `UPDATE support_requests SET status = ?, assigned_to = ? WHERE id = ?`
-	_, err = database.Exec(query, input.Status, input.AssignedTo, requestID)
+	// texnik və istifadəçi email-ləri üçün məlumat al
+	var oldAssigned *int
+	_ = database.QueryRow("SELECT assigned_to FROM support_requests WHERE id = ?", requestID).Scan(&oldAssigned)
+
+	_, err = database.Exec(`UPDATE support_requests SET status = ?, assigned_to = ? WHERE id = ?`, input.Status, input.AssignedTo, requestID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Update failed")
+	}
+
+	if input.AssignedTo != nil && (oldAssigned == nil || *oldAssigned != *input.AssignedTo) {
+		var techEmail string
+		err := database.QueryRow("SELECT email FROM users WHERE id = ?", *input.AssignedTo).Scan(&techEmail)
+		if err == nil && techEmail != "" {
+			utils.SendEmail(techEmail, "Sizə yeni texniki müraciət təyin olundu", fmt.Sprintf("Müraciət ID #%d sizə təyin edildi.", requestID))
+		}
+	}
+
+	var userEmail string
+	err = database.QueryRow("SELECT u.email FROM users u JOIN support_requests s ON u.id = s.user_id WHERE s.id = ?", requestID).Scan(&userEmail)
+	if err == nil && userEmail != "" {
+		utils.SendEmail(userEmail, "Müraciətinizin statusu dəyişdi", fmt.Sprintf("Müraciət #%d statusu dəyişdirildi: %s", requestID, input.Status))
 	}
 
 	return c.JSON(fiber.Map{"success": true, "message": "Request updated"})
